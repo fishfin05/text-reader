@@ -23,7 +23,13 @@ export default function Home() {
         body: JSON.stringify({ url: url.trim() }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: { id?: string; error?: string };
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(`Server error (${res.status}): ${text.slice(0, 200)}`);
+      }
       if (!res.ok) throw new Error(data.error || 'Failed to load article');
 
       router.push(`/reader/${data.id}`);
