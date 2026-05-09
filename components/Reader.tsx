@@ -59,7 +59,9 @@ export default function Reader({ article }: ReaderProps) {
       });
 
       return updated;
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`TTS error: ${msg}`);
       setChunkStates(prev => {
         const next = [...prev];
         next[index] = 'error';
