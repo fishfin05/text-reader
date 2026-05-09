@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { JSDOM } from 'jsdom';
+import { parseHTML } from 'linkedom';
 import { Readability } from '@mozilla/readability';
 import { getArticleByUrl, createArticle } from '@/lib/db';
 import type { Chunk } from '@/lib/types';
@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
     const { url } = await request.json();
     if (!url) return Response.json({ error: 'URL required' }, { status: 400 });
 
-    // Return cached article if it exists
     const existing = await getArticleByUrl(url);
     if (existing) {
       return Response.json({
@@ -56,22 +55,25 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Fetch and parse
     const res = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TextReader/1.0)' },
     });
     if (!res.ok) throw new Error(`Failed to fetch article: ${res.status}`);
 
     const html = await res.text();
-    const dom = new JSDOM(html, { url });
-    const reader = new Readability(dom.window.document);
+    const { document } = parseHTML(html);
+
+    // linkedom doesn't set document.baseURI so patch location manually
+    try { (document as unknown as { _URL: string })._URL = url; } catch { /* ignore */ }
+
+    const reader = new Readability(document as unknown as Document);
     const parsed = reader.parse();
 
     if (!parsed) throw new Error('Could not extract article content');
 
-    const contentDom = new JSDOM(parsed.content ?? '');
+    const { document: contentDoc } = parseHTML(parsed.content ?? '');
     let paragraphs = Array.from(
-      contentDom.window.document.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li')
+      contentDoc.querySelectorAll('p, h1, h2, h3, h4, h5, h6, li')
     )
       .map(el => el.textContent?.trim() ?? '')
       .filter(t => t.length > 20);
