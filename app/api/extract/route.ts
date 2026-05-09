@@ -40,8 +40,21 @@ function makeChunk(index: number, text: string): Chunk {
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json();
-    if (!url) return Response.json({ error: 'URL required' }, { status: 400 });
+    const { url, text, title } = await request.json();
+
+    // ── paste-text mode ──────────────────────────────────────────────────────
+    if (text) {
+      const paragraphs = (text as string)
+        .split('\n')
+        .map((l: string) => l.trim())
+        .filter((l: string) => l.length > 20);
+      const chunks = splitIntoChunks(paragraphs.length > 0 ? paragraphs : [text]);
+      const fakeUrl = `text:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const data = await createArticle(fakeUrl, (title as string) || 'Untitled', null, chunks);
+      return Response.json({ id: data.id, url: data.url, title: data.title, byline: null, chunks: data.chunks, createdAt: data.created_at });
+    }
+
+    if (!url) return Response.json({ error: 'URL or text required' }, { status: 400 });
 
     const existing = await getArticleByUrl(url);
     if (existing) {

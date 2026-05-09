@@ -21,7 +21,7 @@ function buildSSML(words: string[]): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const { articleId, chunkIndex } = await request.json();
+    const { articleId, chunkIndex, voice } = await request.json();
     if (!articleId || chunkIndex === undefined) {
       return Response.json({ error: 'articleId and chunkIndex required' }, { status: 400 });
     }
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           input: { ssml },
-          voice: { languageCode: 'en-US', name: TTS_VOICE },
+          voice: { languageCode: 'en-US', name: (voice as string) || TTS_VOICE },
           audioConfig: { audioEncoding: 'MP3', speakingRate: 1.0 },
           enableTimePointing: ['SSML_MARK'],
         }),
