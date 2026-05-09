@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const ssml = buildSSML(words);
 
     const ttsRes = await fetch(
-      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${TTS_API_KEY}`,
+      `https://texttospeech.googleapis.com/v1beta1/text:synthesize?key=${TTS_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
