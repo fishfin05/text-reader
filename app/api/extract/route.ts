@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       const chunks = splitIntoChunks(paragraphs.length > 0 ? paragraphs : [text]);
       const fakeUrl = `text:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const data = await createArticle(fakeUrl, (title as string) || 'Untitled', null, chunks);
-      return Response.json({ id: data.id, url: data.url, title: data.title, byline: null, chunks: data.chunks, createdAt: data.createdAt });
+      return Response.json({ id: data.id, url: data.url, title: data.title, byline: null, chunks: data.chunks, createdAt: data.created_at });
     }
 
     if (!url) return Response.json({ error: 'URL or text required' }, { status: 400 });
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         title: existing.title,
         byline: existing.byline,
         chunks: existing.chunks,
-        createdAt: existing.createdAt,
+        createdAt: existing.created_at,
       });
     }
 
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       title: data.title,
       byline: data.byline,
       chunks: data.chunks,
-      createdAt: data.createdAt,
+      createdAt: data.created_at,
     });
   } catch (err) {
     console.error('Extract error:', err);

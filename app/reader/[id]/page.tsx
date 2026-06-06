@@ -14,7 +14,7 @@ export default async function ReaderPage({ params }: { params: Promise<{ id: str
     title: data.title,
     byline: data.byline,
     chunks: data.chunks,
-    createdAt: data.createdAt instanceof Date ? data.createdAt.toISOString() : String(data.createdAt),
+    createdAt: data.created_at,
   };
 
   return <Reader article={article} />;

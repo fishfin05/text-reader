@@ -1,112 +1,128 @@
-'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  const router   = useRouter()
-  const [url, setUrl]     = useState('')
-  const [text, setText]   = useState('')
-  const [title, setTitle] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
-  const [mode, setMode]       = useState<'url' | 'paste'>('url')
+  const [mode, setMode]     = useState<'url' | 'text'>('url');
+  const [url, setUrl]       = useState('');
+  const [text, setText]     = useState('');
+  const [title, setTitle]   = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError]   = useState('');
+  const router = useRouter();
 
-  async function submit() {
-    setError('')
-    setLoading(true)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
     try {
-      const body = mode === 'url' ? { url } : { text, title }
-      const res  = await fetch('/api/extract', {
+      const body = mode === 'url'
+        ? { url: url.trim() }
+        : { text: text.trim(), title: title.trim() || 'Untitled' };
+
+      const res = await fetch('/api/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      router.push(`/reader/${data.id}`)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong')
-    } finally {
-      setLoading(false)
+      });
+
+      const raw = await res.text();
+      let data: { id?: string; error?: string };
+      try { data = JSON.parse(raw); }
+      catch { throw new Error(`Server error (${res.status}): ${raw.slice(0, 200)}`); }
+
+      if (!res.ok) throw new Error(data.error || 'Failed to load article');
+      router.push(`/reader/${data.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setLoading(false);
     }
-  }
+  };
+
+  const isValid = mode === 'url' ? url.trim().length > 0 : text.trim().length > 0;
 
   return (
-    <main style={{ maxWidth: 600, margin: '6rem auto', padding: '0 1rem', fontFamily: 'system-ui, sans-serif' }}>
-      <h1 style={{ fontSize: '2rem', marginBottom: '.5rem' }}>Text Reader</h1>
-      <p style={{ color: '#555', marginBottom: '2rem' }}>
-        Paste a URL or text to read it aloud with word-level highlighting.
-      </p>
+    <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-md space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-900">Text Reader</h1>
+          <p className="mt-2 text-gray-500 text-sm">Audiobook-quality narration of any article</p>
+        </div>
 
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-        {(['url', 'paste'] as const).map(m => (
+        {/* Tab toggle */}
+        <div className="flex bg-gray-100 rounded-xl p-1">
+          {(['url', 'text'] as const).map(m => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={['flex-1 py-2 text-sm font-medium rounded-lg transition-colors', mode === m ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'].join(' ')}
+            >
+              {m === 'url' ? 'Article URL' : 'Paste Text'}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {mode === 'url' ? (
+            <input
+              type="url"
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              placeholder="https://example.com/article"
+              required
+              autoFocus
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+            />
+          ) : (
+            <>
+              <input
+                type="text"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Title (optional)"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base"
+              />
+              <textarea
+                value={text}
+                onChange={e => setText(e.target.value)}
+                placeholder="Paste your article, essay, or any text here…"
+                required
+                autoFocus
+                rows={8}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-base resize-none"
+              />
+            </>
+          )}
+
           <button
-            key={m}
-            onClick={() => setMode(m)}
-            style={{
-              padding: '.5rem 1.25rem',
-              borderRadius: 6,
-              border: 'none',
-              cursor: 'pointer',
-              background: mode === m ? '#3b5bdb' : '#e9ecef',
-              color: mode === m ? '#fff' : '#333',
-              fontWeight: 500,
-            }}
+            type="submit"
+            disabled={loading || !isValid}
+            className="w-full py-3 bg-blue-600 text-white rounded-xl font-medium text-base hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
           >
-            {m === 'url' ? 'Article URL' : 'Paste Text'}
+            {loading ? (
+              <>
+                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                Loading…
+              </>
+            ) : 'Load Article'}
           </button>
-        ))}
+        </form>
+
+        {error && (
+          <p className="text-sm text-red-600 text-center bg-red-50 px-4 py-3 rounded-lg">{error}</p>
+        )}
+
+        <p className="text-xs text-gray-400 text-center">
+          {mode === 'url'
+            ? 'Works with most news sites, blogs, and long-form articles.'
+            : 'Paste any text — articles, book chapters, documents.'}
+          <br/>First listen takes a moment to generate audio per paragraph.
+        </p>
       </div>
-
-      {mode === 'url' ? (
-        <input
-          type="url"
-          placeholder="https://..."
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && submit()}
-          style={{ width: '100%', padding: '.75rem', fontSize: '1rem', borderRadius: 6, border: '1px solid #ccc', boxSizing: 'border-box' }}
-        />
-      ) : (
-        <>
-          <input
-            type="text"
-            placeholder="Title (optional)"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            style={{ width: '100%', padding: '.75rem', fontSize: '1rem', borderRadius: 6, border: '1px solid #ccc', boxSizing: 'border-box', marginBottom: '.75rem' }}
-          />
-          <textarea
-            placeholder="Paste your text here…"
-            value={text}
-            onChange={e => setText(e.target.value)}
-            rows={10}
-            style={{ width: '100%', padding: '.75rem', fontSize: '1rem', borderRadius: 6, border: '1px solid #ccc', boxSizing: 'border-box', resize: 'vertical' }}
-          />
-        </>
-      )}
-
-      {error && <p style={{ color: '#c0392b', marginTop: '.75rem' }}>{error}</p>}
-
-      <button
-        onClick={submit}
-        disabled={loading || (mode === 'url' ? !url : !text)}
-        style={{
-          marginTop: '1rem',
-          width: '100%',
-          padding: '.85rem',
-          fontSize: '1rem',
-          borderRadius: 6,
-          border: 'none',
-          cursor: 'pointer',
-          background: '#3b5bdb',
-          color: '#fff',
-          fontWeight: 600,
-          opacity: loading ? .7 : 1,
-        }}
-      >
-        {loading ? 'Loading…' : 'Read →'}
-      </button>
     </main>
-  )
+  );
 }

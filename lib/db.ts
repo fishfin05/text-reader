@@ -1,32 +1,40 @@
-import { neon } from '@neondatabase/serverless'
-import { drizzle } from 'drizzle-orm/neon-http'
-import { eq } from 'drizzle-orm'
-import { articles } from './schema'
-import type { Chunk } from './types'
+import { neon } from '@neondatabase/serverless';
+import type { Chunk } from './types';
 
-const sql = neon(process.env.DATABASE_URL!)
-const db = drizzle(sql)
+function getSQL() {
+  return neon(process.env.DATABASE_URL!);
+}
 
 export async function getArticleByUrl(url: string) {
-  const rows = await db.select().from(articles).where(eq(articles.url, url)).limit(1)
-  return rows[0] ?? null
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM articles WHERE url = ${url} LIMIT 1`;
+  return rows[0] ?? null;
 }
 
 export async function getArticleById(id: string) {
-  const rows = await db.select().from(articles).where(eq(articles.id, id)).limit(1)
-  return rows[0] ?? null
+  const sql = getSQL();
+  const rows = await sql`SELECT * FROM articles WHERE id = ${id} LIMIT 1`;
+  return rows[0] ?? null;
 }
 
 export async function createArticle(
   url: string,
   title: string,
   byline: string | null,
-  chunks: Chunk[],
+  chunks: Chunk[]
 ) {
-  const rows = await db.insert(articles).values({ url, title, byline, chunks }).returning()
-  return rows[0]
+  const sql = getSQL();
+  const rows = await sql`
+    INSERT INTO articles (url, title, byline, chunks)
+    VALUES (${url}, ${title}, ${byline}, ${JSON.stringify(chunks)}::jsonb)
+    RETURNING *
+  `;
+  return rows[0];
 }
 
 export async function updateArticleChunks(id: string, chunks: Chunk[]) {
-  await db.update(articles).set({ chunks }).where(eq(articles.id, id))
+  const sql = getSQL();
+  await sql`
+    UPDATE articles SET chunks = ${JSON.stringify(chunks)}::jsonb WHERE id = ${id}
+  `;
 }
